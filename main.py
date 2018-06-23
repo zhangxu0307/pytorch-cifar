@@ -31,21 +31,22 @@ args = parser.parse_args()
 def adjust_lr(optimizer, epoch, lamda=50):
 
     # exp adjust
-    lr = args.lr*(0.1**(epoch//lamda))
-    if lr >= 1e-6:
-        for param_group in optimizer.param_groups:
-            param_group['lr'] = lr
+    # lr = args.lr*(0.1**(epoch//lamda))
+    # if lr >= 1e-6:
+    #     for param_group in optimizer.param_groups:
+    #         param_group['lr'] = lr
 
-    # # schedule lr adjust
-    # if epoch >= 0 and epoch < 150:
-    #     lr = 0.1
-    # if epoch >= 150 and epoch < 250:
-    #     lr = 0.01
-    # if epoch >= 250 and epoch < 350:
-    #     lr = 0.001
-    #
-    # for param_group in optimizer.param_groups:
-    #     param_group['lr'] = lr
+    # schedule lr adjust
+    lr = 0.1
+    if epoch >= 0 and epoch < 150:
+        lr = 0.1
+    if epoch >= 150 and epoch < 250:
+        lr = 0.01
+    if epoch >= 250 and epoch < 350:
+        lr = 0.001
+
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
 
 
 def loadCIFAR10(batchSize):
@@ -74,9 +75,8 @@ def loadCIFAR10(batchSize):
     return trainloader, testloader
 
 
-def train(model, batchSize, epoch, checkPoint, savePoint, modelPath, tolearnce=2, curEpoch=0, useCuda=True):
+def train(model, batchSize, epoch, checkPoint, savePoint, modelPath,  curEpoch=0, best_acc = 0, useCuda=True, earlyStop=True, tolearnce=2):
 
-    best_acc = 0
     tolerance_cnt = 0
     step = 0
 
@@ -87,7 +87,6 @@ def train(model, batchSize, epoch, checkPoint, savePoint, modelPath, tolearnce=2
     # optimizer = optim.Adam(net.parameters(), lr=args.lr)
     optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=5e-4)
     trainLoader, testLoader = loadCIFAR10(batchSize=batchSize)
-
 
     for i in range(curEpoch, curEpoch+epoch):
 
@@ -118,21 +117,27 @@ def train(model, batchSize, epoch, checkPoint, savePoint, modelPath, tolearnce=2
             if (batch_idx + 1) % checkPoint == 0 or (batch_idx + 1) == len(trainLoader):
                 print('==>>> epoch: {}, batch index: {}, train loss: {:.6f}'.format(i, batch_idx + 1, sum_loss/(batch_idx+1)))
 
-            if (step + 1) % savePoint == 0:
-                saveModel(model, i, best_acc, modelPath)
-                print("----------save finish----------------")
+            # save model every savepoint steps
+            # if (step + 1) % savePoint == 0:
+            #     saveModel(model, i, best_acc, modelPath)
+            #     print("----------save finish----------------")
 
         acc = test(net, testLoader, useCuda=True)
 
-        # early stopping
-        if acc < best_acc:
-            tolerance_cnt += 1
-        else:
-            best_acc = acc
-            tolerance_cnt = 0
-        if tolerance_cnt >= tolearnce:
-            print("early stopping training....")
-            break
+        if earlyStop:
+            # early stopping
+            if acc < best_acc:
+                tolerance_cnt += 1
+            else:
+                best_acc = acc
+                tolerance_cnt = 0
+            if tolerance_cnt >= tolearnce:
+                print("early stopping training....")
+                break
+
+        # save model when test acc is highest
+        if best_acc < acc:
+            saveModel(model, epoch, acc, modelPath)
 
     saveModel(model, epoch, best_acc, modelPath)
 
@@ -163,33 +168,38 @@ def test(model, testLoader, useCuda=True):
 if __name__ == '__main__':
 
     # Model
+
+    modelPath = "./model/mobilenetv2"
+
+    print('==> Building model..')
+    # net = VGG('VGG19')
+    # net = ResNet18()
+    # net = PreActResNet18()
+    # net = GoogLeNet()
+    # net = DenseNet121()
+    # net = ResNeXt29_2x64d()
+    # net = MobileNet()
+    net = MobileNetV2()
+    # net = DPN92()
+    # net = ShuffleNetG2()
+    #net = SENet18()
+
     if args.resume:
         # Load checkpoint.
-        print('==> Resuming from checkpoint..')
-        assert os.path.isdir('checkpoint'), 'Error: no checkpoint directory found!'
-        checkpoint = torch.load('./checkpoint/ckpt.t7')
-        net = checkpoint['net']
-        best_acc = checkpoint['acc']
-        start_epoch = checkpoint['epoch']
+        net, best_acc, curEpoch = loadModel(modelPath, net)
     else:
-        print('==> Building model..')
-        # net = VGG('VGG19')
-        # net = ResNet18()
-        # net = PreActResNet18()
-        # net = GoogLeNet()
-        # net = DenseNet121()
-        # net = ResNeXt29_2x64d()
-        # net = MobileNet()
-        net = MobileNetV2()
-        # net = DPN92()
-        # net = ShuffleNetG2()
-        #net = SENet18()
+        best_acc = 0
+        curEpoch = 0
+
+    print("current epoch:", curEpoch)
+    print("current best acc:", best_acc)
 
     use_cuda = torch.cuda.is_available()
-        #net = torch.nn.DataParallel(net, device_ids=range(torch.cuda.device_count()))
-        #cudnn.benchmark = True
+    #net = torch.nn.DataParallel(net, device_ids=range(torch.cuda.device_count()))
+    #cudnn.benchmark = True
 
-    train(model=net, batchSize=128, epoch=50, checkPoint=10, savePoint=500, modelPath="./model/mobilenetv2", useCuda=True)
+    train(model=net, batchSize=128, epoch=350, checkPoint=10, savePoint=500, modelPath=modelPath,
+          useCuda=True, best_acc=best_acc, curEpoch=curEpoch)
 
 
 
