@@ -23,27 +23,28 @@ from utils import saveModel, loadModel
 
 
 parser = argparse.ArgumentParser(description='PyTorch CIFAR10 Training')
-parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
+parser.add_argument('--lr', default=0.0001, type=float, help='learning rate')
 parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
 args = parser.parse_args()
 
 
-def adjust_lr(optimizer, epoch, lamda=50):
+def adjust_lr(optimizer, epoch, lamda=60):
 
     # exp adjust
-    # lr = args.lr*(0.1**(epoch//lamda))
-    # if lr >= 1e-6:
-    #     for param_group in optimizer.param_groups:
-    #         param_group['lr'] = lr
+    lr = args.lr*(0.1**(epoch//lamda))
+    if lr >= 1e-6:
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+
 
     # schedule lr adjust
-    lr = 0.1
-    if epoch >= 0 and epoch < 150:
-        lr = 0.1
-    if epoch >= 150 and epoch < 250:
-        lr = 0.01
-    if epoch >= 250 and epoch < 350:
-        lr = 0.001
+    # lr = 0.1
+    # if epoch >= 0 and epoch < 150:
+    #     lr = 0.1
+    # if epoch >= 150 and epoch < 250:
+    #     lr = 0.01
+    # if epoch >= 250 and epoch < 350:
+    #     lr = 0.001
 
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
@@ -75,7 +76,8 @@ def loadCIFAR10(batchSize):
     return trainloader, testloader
 
 
-def train(model, batchSize, epoch, checkPoint, savePoint, modelPath,  curEpoch=0, best_acc = 0, useCuda=True, earlyStop=True, tolearnce=2):
+def train(model, batchSize, epoch, checkPoint, savePoint, modelPath,  curEpoch=0, best_acc = 0, useCuda=True,
+          adjustLR = True, earlyStop=True, tolearnce=4):
 
     tolerance_cnt = 0
     step = 0
@@ -98,7 +100,8 @@ def train(model, batchSize, epoch, checkPoint, savePoint, modelPath,  curEpoch=0
         for batch_idx, (x, target) in enumerate(trainLoader):
 
             optimizer.zero_grad()
-            adjust_lr(optimizer, epoch)
+            if adjustLR:
+                adjust_lr(optimizer, epoch)
 
             if useCuda:
                 x, target = x.cuda(), target.cuda()
@@ -115,7 +118,7 @@ def train(model, batchSize, epoch, checkPoint, savePoint, modelPath,  curEpoch=0
             step += 1
 
             if (batch_idx + 1) % checkPoint == 0 or (batch_idx + 1) == len(trainLoader):
-                print('==>>> epoch: {}, batch index: {}, train loss: {:.6f}'.format(i, batch_idx + 1, sum_loss/(batch_idx+1)))
+                print('==>>> epoch: {}, batch index: {}, step: {}, train loss: {:.6f}'.format(i, batch_idx + 1, step, sum_loss/(batch_idx+1)))
 
             # save model every savepoint steps
             # if (step + 1) % savePoint == 0:
@@ -138,8 +141,9 @@ def train(model, batchSize, epoch, checkPoint, savePoint, modelPath,  curEpoch=0
         # save model when test acc is highest
         if best_acc < acc:
             saveModel(model, epoch, acc, modelPath)
+            best_acc = acc
 
-    saveModel(model, epoch, best_acc, modelPath)
+    # saveModel(model, epoch, best_acc, modelPath)
 
 
 def test(model, testLoader, useCuda=True):
@@ -198,8 +202,8 @@ if __name__ == '__main__':
     #net = torch.nn.DataParallel(net, device_ids=range(torch.cuda.device_count()))
     #cudnn.benchmark = True
 
-    train(model=net, batchSize=128, epoch=350, checkPoint=10, savePoint=500, modelPath=modelPath,
-          useCuda=True, best_acc=best_acc, curEpoch=curEpoch)
+    train(model=net, batchSize=128, epoch=30, checkPoint=10, savePoint=500, modelPath=modelPath,
+          useCuda=True, best_acc=best_acc, adjustLR=False, curEpoch=curEpoch, earlyStop=False)
 
 
 
