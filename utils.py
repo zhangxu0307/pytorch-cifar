@@ -125,3 +125,25 @@ def format_time(seconds):
     if f == '':
         f = '0ms'
     return f
+
+
+def saveModel(net, epoch, best_acc, modelPath):
+
+    print('Saving..')
+    state = {
+        'net': net.state_dict(),
+        'acc': best_acc,
+        'epoch': epoch,
+    }
+    torch.save(state, modelPath)
+
+
+def loadModel(modelPath, net):
+
+    print('==> Resuming from checkpoint..')
+    checkpoint = torch.load(modelPath)
+    net.load_state_dict(checkpoint['net'])
+    best_acc = checkpoint['acc']
+    start_epoch = checkpoint['epoch']
+
+    return net, best_acc, start_epoch
