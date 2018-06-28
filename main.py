@@ -17,7 +17,7 @@ from utils import progress_bar
 from torch.autograd import Variable
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 
 from utils import saveModel, loadModel
 
@@ -46,8 +46,8 @@ def adjust_lr(optimizer, epoch, lamda=60):
     # if epoch >= 250 and epoch < 350:
     #     lr = 0.001
 
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
+    # for param_group in optimizer.param_groups:
+    #     param_group['lr'] = lr
 
 
 def loadCIFAR10(batchSize):
@@ -56,6 +56,8 @@ def loadCIFAR10(batchSize):
     transform_train = transforms.Compose([
         transforms.RandomCrop(32, padding=4),
         transforms.RandomHorizontalFlip(),
+        # transforms.RandomVerticalFlip(),
+        # transforms.RandomRotation(degrees=20),
         transforms.ToTensor(),
         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
     ])
@@ -173,20 +175,21 @@ if __name__ == '__main__':
 
     # Model
 
-    modelPath = "./model/mobilenetv2"
+    modelPath = "./model/mobileNetV2_Maxout"
 
     print('==> Building model..')
     # net = VGG('VGG19')
-    # net = ResNet18()
+    net = ResNet50()
     # net = PreActResNet18()
     # net = GoogLeNet()
     # net = DenseNet121()
     # net = ResNeXt29_2x64d()
     # net = MobileNet()
-    net = MobileNetV2()
+    # net = MobileNetV2()
     # net = DPN92()
     # net = ShuffleNetG2()
     #net = SENet18()
+    net = MobileNetV2_Maxout()
 
     if args.resume:
         # Load checkpoint.
