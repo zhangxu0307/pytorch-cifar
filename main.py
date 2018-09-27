@@ -129,21 +129,23 @@ def train(model, batchSize, epoch, checkPoint, savePoint, modelPath,  curEpoch=0
 
         acc = test(net, testLoader, useCuda=True)
 
+        # early stopping
         if earlyStop:
-            # early stopping
             if acc < best_acc:
                 tolerance_cnt += 1
             else:
                 best_acc = acc
                 tolerance_cnt = 0
+                saveModel(model, epoch, best_acc, modelPath)
+
             if tolerance_cnt >= tolearnce:
                 print("early stopping training....")
-                break
-
-        # save model when test acc is highest
-        if best_acc < acc:
-            saveModel(model, epoch, acc, modelPath)
-            best_acc = acc
+                saveModel(model, epoch, best_acc, modelPath)
+                return
+        else:
+            if best_acc < acc:
+                saveModel(model, epoch, acc, modelPath)
+                best_acc = acc
 
     # saveModel(model, epoch, best_acc, modelPath)
 
